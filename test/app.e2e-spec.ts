@@ -2,14 +2,11 @@ import { Body, Controller, Get, HttpCode, INestApplication, Param, ParseUUIDPipe
 import { Test } from '@nestjs/testing';
 import { IsString, MinLength } from 'class-validator';
 import request from 'supertest';
+import { Public } from '../src/modules/identity/interfaces/http/decorators.js';
 import { DomainError } from '../src/shared/domain/domain-error.js';
 
-// Env must be set before AppModule is imported (Observe/Config read it at import time).
-process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET ??= 'e2e-secret-that-is-at-least-32-characters';
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgres://nobody:nobody@127.0.0.1:1/none';
-const { AppModule } = await import('../src/app.module.js');
-const { applyAppSettings } = await import('../src/setup-app.js');
+import { AppModule } from '../src/app.module.js';
+import { applyAppSettings } from '../src/setup-app.js';
 
 class NotFound extends DomainError {
   readonly code = 'TICKET_NOT_FOUND';
@@ -20,6 +17,7 @@ class ProbeDto {
 }
 
 // Throwaway routes exercising the global pipe/filter/interceptor wiring.
+@Public()
 @Controller('probe')
 class ProbeController {
   @Post() create(@Body() dto: ProbeDto) { return dto; }

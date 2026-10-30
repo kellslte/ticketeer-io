@@ -2,7 +2,7 @@ import { ActorNotAllowedError, InvalidStatusTransitionError, InvalidTicketFieldE
 import { TicketAssigned, TicketCreated, TicketDeleted, TicketStatusChanged } from './events.js';
 import { Ticket } from './ticket.js';
 import { TicketStatus } from './ticket-status.js';
-import { admin, agent, customer, makeTicket, otherCustomer } from './fixtures.js';
+import { admin, agent, customer, makeTicket, otherCustomer } from './ticket.fixtures.js';
 
 const ALL = Object.values(TicketStatus);
 

@@ -6,6 +6,10 @@ import { createObserveModule } from '@nestjs/observe';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation.js';
 import { HealthController } from './health/health.controller.js';
+import { IdentityModule } from './modules/identity/identity.module.js';
+import { JwtAuthGuard } from './modules/identity/interfaces/http/jwt-auth.guard.js';
+import { RolesGuard } from './modules/identity/interfaces/http/roles.guard.js';
+import { TicketingModule } from './modules/ticketing/ticketing.module.js';
 import { AllExceptionsFilter } from './shared/errors/all-exceptions.filter.js';
 import { DatabaseModule } from './shared/infrastructure/database.module.js';
 import { ResponseEnvelopeInterceptor } from './shared/interceptors/response-envelope.interceptor.js';
@@ -27,11 +31,16 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     EventEmitterModule.forRoot(),
     DatabaseModule,
+    IdentityModule,
+    TicketingModule,
   ],
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // Guard order matters: throttle first, then authenticate, then check roles.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
   ],
 })

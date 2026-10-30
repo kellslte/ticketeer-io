@@ -1,5 +1,5 @@
 import { ActorNotAllowedError, InvalidAssigneeError, TicketClosedError } from './errors.js';
-import { agent, customer, makeTicket } from './fixtures.js';
+import { agent, customer, makeTicket } from './ticket.fixtures.js';
 import { TicketAssigner } from './ticket-assigner.js';
 
 const directory = (agents: string[]) => ({ isAgent: vi.fn(async (id: string) => agents.includes(id)) });

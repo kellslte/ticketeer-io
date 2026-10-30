@@ -1,7 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
-
-const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+import { trim } from '../../../../shared/dto/transforms.js';
 
 export class RegisterDto {
   @Transform(trim) @IsEmail() @MaxLength(254) email!: string;

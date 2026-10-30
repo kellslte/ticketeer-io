@@ -1,11 +1,9 @@
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MaxLength } from 'class-validator';
+import { trim } from '../../../../shared/dto/transforms.js';
 
 export class LoginDto {
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
-  @IsEmail()
-  @MaxLength(254)
-  email!: string;
+  @Transform(trim) @IsEmail() @MaxLength(254) email!: string;
 
   @IsString() @MaxLength(128) password!: string;
 }

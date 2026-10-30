@@ -22,10 +22,20 @@ jobs:
       JWT_SECRET: ci-only-secret-that-is-at-least-32-chars-long
     steps:
       - uses: actions/checkout@v4
+      # argon2 is a native module: run on the same Node the app is deployed with.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run build
-      - run: bun run test
+      # Fails if the Drizzle schema changed without a committed migration.
+      - name: Check migrations are up to date
+        run: |
+          bun run db:generate
+          test -z "$(git status --porcelain -- drizzle)" || { git status --porcelain -- drizzle; echo "Schema changed without a committed migration: run 'bun run db:generate' and commit drizzle/"; exit 1; }
+      # Unit tests with the 90% line coverage gate on domain + application code.
+      - run: bun run test:cov
       - run: bun run test:e2e

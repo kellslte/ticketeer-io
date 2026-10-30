@@ -1,126 +1,161 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Ticketeer
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A support-ticket API. Customers report issues; the support team tracks, assigns and resolves them.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+NestJS 12 · TypeScript (ESM) · PostgreSQL · Drizzle ORM · JWT auth · Vitest · [NestJS Observe](https://observe.nestjs.com) for production telemetry.
 
-## Description
+## Quick start
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+Requires **Node 22+ (24 LTS recommended)**, [Bun](https://bun.sh) and a PostgreSQL 16 database.
 
 ```bash
-$ bun install
+bun install
+cp .env.example .env            # then edit DATABASE_URL and JWT_SECRET
+docker compose up -d            # optional: Postgres on :5433 (matches .env.example)
+bun run db:migrate              # create the tables
+bun run db:seed                 # create the first admin from ADMIN_EMAIL / ADMIN_PASSWORD
+bun run start:dev
 ```
 
-## Compile and run the project
+- API: `http://localhost:3000/api/v1`
+- Interactive docs: `http://localhost:3000/docs` (disabled when `NODE_ENV=production`)
+- Health: `GET /api/v1/health`
+
+> **Node version:** `argon2` is a native module. A binary compiled locally crashed (segfault) on Node 20.20.2 and works on Node 22, 24 and 26, so run and build on 22+.
+
+## Configuration
+
+Validated at startup; the app refuses to boot on a missing or unsafe value.
+
+| Variable                                | Required  | Notes                                                                                                                                |
+| --------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                          | yes       | `postgres://user:pass@host:port/db`                                                                                                  |
+| `JWT_SECRET`                            | yes       | In production: at least 32 characters and not a placeholder such as `change-me…`                                                     |
+| `JWT_EXPIRES_IN`                        | no        | Default `15m`. A role change takes effect when the token expires or the user logs in again                                           |
+| `PORT`                                  | no        | Default `3000`                                                                                                                       |
+| `CORS_ORIGINS`                          | no        | Comma-separated allow-list. Default `http://localhost:3000`                                                                          |
+| `TRUST_PROXY`                           | no        | Set when behind a reverse proxy: a hop count (`1`) or an Express list (`loopback, 10.0.0.0/8`). See [Rate limiting](#security-notes) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`         | seed only | Password at least 10 characters                                                                                                      |
+| `OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET` | no        | Written by `npx @nestjs/observe link`                                                                                                |
+
+## API
+
+Base path `/api/v1`. Every route needs `Authorization: Bearer <token>` except `GET /health`, `POST /auth/register` and `POST /auth/login`.
+
+| Method & path           | Who                         | Purpose                                                                                                                                           |
+| ----------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /auth/register`   | public                      | Create a customer account                                                                                                                         |
+| `POST /auth/login`      | public                      | Returns `{ accessToken, expiresIn }`                                                                                                              |
+| `GET /auth/me`          | any                         | Current user                                                                                                                                      |
+| `PATCH /users/:id/role` | admin                       | Set a user's role (`customer`, `agent`, `admin`); not your own                                                                                    |
+| `POST /tickets`         | any                         | Raise a ticket (`title`, `description`). It is always created `open`; sending `status` is a 400                                                   |
+| `GET /tickets`          | any                         | List. Query: `status`, `assigneeId` (a user id or `me`), `page`, `limit` (max 100), `sort=createdAt:asc\|desc`. Customers only ever see their own |
+| `GET /tickets/:id`      | owner, staff                | One ticket. Someone else's ticket is a 404, not a 403                                                                                             |
+| `PATCH /tickets/:id`    | see below                   | Any of `title`, `description`, `status`, `assigneeId` (`null` unassigns). All-or-nothing                                                          |
+| `DELETE /tickets/:id`   | owner (while `open`), admin | Soft delete, 204                                                                                                                                  |
+
+**Status lifecycle:** `open → in_progress → resolved → closed`, plus `open|in_progress → closed` and `resolved → in_progress` (reopen). `closed` is final.
+
+| Action                                          | Customer          | Agent | Admin |
+| ----------------------------------------------- | ----------------- | ----- | ----- |
+| Edit title/description                          | own, while `open` | no    | no    |
+| Close own ticket / reopen own `resolved` ticket | yes               | –     | –     |
+| Start work, resolve                             | **no (403)**      | yes   | yes   |
+| Assign / unassign                               | no                | yes   | yes   |
+| Delete                                          | own, while `open` | no    | any   |
+
+Assigning an `open` ticket moves it to `in_progress` automatically. Assignees must be an agent or admin (otherwise 422).
+
+**Responses** use one envelope:
+
+```jsonc
+{ "status": "success", "data": { }, "timestamp": "…" }
+{ "status": "error", "error": { "code": "VALIDATION_ERROR", "message": "…",
+    "details": [{ "field": "title", "message": "…" }], "traceId": "…", "timestamp": "…" }, "timestamp": "…" }
+```
+
+| Status | `error.code`                                                                           |
+| ------ | -------------------------------------------------------------------------------------- |
+| 400    | `VALIDATION_ERROR` (bad body, unknown field, bad enum, non-UUID id)                    |
+| 401    | `UNAUTHORIZED`, `INVALID_CREDENTIALS`                                                  |
+| 403    | `FORBIDDEN`                                                                            |
+| 404    | `TICKET_NOT_FOUND`, `USER_NOT_FOUND`                                                   |
+| 409    | `INVALID_STATUS_TRANSITION`, `TICKET_CLOSED`, `CONCURRENT_MODIFICATION`, `EMAIL_TAKEN` |
+| 422    | `INVALID_ASSIGNEE`                                                                     |
+| 429    | `TOO_MANY_REQUESTS`                                                                    |
+| 500    | `INTERNAL_SERVER_ERROR` (message is generic; details are logged, never returned)       |
+
+`traceId` is the request's `x-request-id` header if you send one, otherwise a generated UUID.
+
+## Architecture
+
+Domain-driven, two bounded contexts that talk only through ids and a port:
+
+```
+src/
+  main.ts, setup-app.ts        bootstrap; setup-app is shared with the e2e tests
+  app.module.ts                global filter, guards (throttle → JWT → roles), interceptor
+  config/                      environment validation
+  shared/                      AggregateRoot, DomainEvent, DomainError, exception filter, envelope, validation pipe
+  modules/
+    identity/                  users, credentials, roles, JWT
+    ticketing/                 the Ticket aggregate and its rules
+      domain/                  pure TypeScript: Ticket, status rules, errors, events, ports
+      application/             use-cases and DTOs
+      infrastructure/          Drizzle tables and repositories, Identity adapter
+      interfaces/http/         controllers
+  health/
+drizzle/                       SQL migrations (committed)
+scripts/seed-admin.ts
+test/                          end-to-end tests (real PostgreSQL)
+```
+
+- **The domain imports nothing from Nest, Drizzle or other layers.** A lint rule enforces it.
+- Domain errors carry a stable `code` and no HTTP knowledge; one filter maps them to statuses.
+- Ticketing refers to users by id only. It asks Identity "is this user an agent?" through the `AgentDirectory` port.
+- Domain events are raised by the aggregate and published only after a successful save.
+
+## Scripts
+
+| Command                                | Does                                                                  |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| `bun run start:dev`                    | Run with reload                                                       |
+| `bun run build` / `bun run start:prod` | Compile to `dist/` / run it                                           |
+| `bun run lint`, `bun run typecheck`    | Static checks                                                         |
+| `bun run test`                         | Unit tests                                                            |
+| `bun run test:cov`                     | Unit tests with the coverage gate (90% lines on domain + application) |
+| `bun run test:e2e`                     | End-to-end tests; need `TEST_DATABASE_URL`                            |
+| `bun run db:generate`                  | Create a migration after editing a `*.table.ts`                       |
+| `bun run db:migrate`                   | Apply migrations to `DATABASE_URL`                                    |
+| `bun run db:seed`                      | Create the first admin                                                |
+| `bun run db:studio`                    | Browse the database                                                   |
+
+### Testing
+
+Unit tests need nothing. The e2e suite needs a dedicated, disposable database: it **truncates the `users` and `tickets` tables** before each test.
 
 ```bash
-# development
-$ bun run start
-
-# watch mode
-$ bun run start:dev
-
-# production mode
-$ bun run start:prod
+createdb ticketeer_test
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ticketeer_test bun run test:e2e
 ```
 
-## Run tests
+Migrations are applied automatically at the start of the run. Without `TEST_DATABASE_URL` the database-backed tests are skipped (CI always sets it).
 
-```bash
-# unit tests
-$ bun run test
+## Deploying
 
-# e2e tests
-$ bun run test:e2e
+1. Build on Node 22+: `bun install --frozen-lockfile && bun run build`.
+2. Run migrations as a **separate release step**, never at app start (several instances booting together would race): `bun run db:migrate`. It uses `drizzle-kit`, a dev dependency, so run it where dev dependencies are installed.
+3. Create the first admin once: `bun run db:seed`. It never promotes an existing non-admin account; if the email is taken by one, it stops with an error.
+4. Start with `NODE_ENV=production node dist/main`, behind a reverse proxy that terminates TLS, with `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGINS` and `TRUST_PROXY` set.
+5. Link the app to Observe (`npx @nestjs/observe link`) and check requests and errors appear in its dashboard.
 
-# test coverage
-$ bun run test:cov
-```
+`SIGTERM` handling is built in (`enableShutdownHooks`), so rolling restarts drain the database pool.
 
-## Deployment
+## Security notes
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ bun install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-This project is already instrumented. To connect it, run this and approve the code it prints at [observe.nestjs.com/link](https://observe.nestjs.com/link) - signing up for free if you have no account:
-
-```bash
-$ npx @nestjs/observe link
-```
-
-It writes the app key and secret into `.env` and makes every `nest start` script (`start`, `start:dev`, `start:debug`) load it. In production, set `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment instead.
-
-Or do it by hand: create an application and an API key at [observe.nestjs.com](https://observe.nestjs.com), and set the pair as `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment the app runs in.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **Passwords:** argon2id. Login does the same work for unknown and known emails and returns one error for both.
+- **Authentication:** default-deny. Every route needs a valid token unless marked `@Public()`.
+- **Rate limiting:** 300 requests/minute/IP overall; 10/minute/IP on `/auth/login` and `/auth/register`. The limit is per IP, so behind a proxy set `TRUST_PROXY` or all users share one bucket. Leave it unset without a proxy: otherwise clients could spoof `X-Forwarded-For` to dodge the limit. The counter is in memory, so with several instances each enforces its own limit.
+- **Privilege:** nobody can self-assign a role on registration. An admin cannot change their own role, so the system cannot lock itself out.
+- **Registration is open and emails are not verified.** Treat an email address as unproven identity until you add verification.
+- Production responses never include internal error text or stack traces, and Swagger is not served.

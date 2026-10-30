@@ -9,6 +9,15 @@ export function applyAppSettings(app: INestApplication): void {
   const config = app.get(ConfigService);
   const production = config.get('NODE_ENV') === 'production';
 
+  // Behind a reverse proxy every request arrives from the proxy's IP, so the per-IP rate limit
+  // would be one shared bucket for all users. Opt in explicitly: trusting X-Forwarded-For when
+  // there is no proxy would let any client spoof its IP and dodge the limit.
+  // A number = proxy hops to trust; otherwise an Express list such as "loopback, 10.0.0.0/8".
+  const trustProxy = config.get<string>('TRUST_PROXY');
+  if (trustProxy) {
+    app.getHttpAdapter().getInstance().set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
+  }
+
   app.setGlobalPrefix('api/v1');
   // Swagger UI needs inline scripts, so CSP is production-only.
   app.use(helmet({ contentSecurityPolicy: production }));

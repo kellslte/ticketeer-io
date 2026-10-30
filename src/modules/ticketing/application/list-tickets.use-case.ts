@@ -11,6 +11,7 @@ export class ListTicketsUseCase {
   async execute(actor: Actor, query: ListTicketsQueryDto) {
     const { items, total } = await this.tickets.search({
       status: query.status,
+      assigneeId: query.assigneeId === 'me' ? actor.id : query.assigneeId,
       // Scoping lives here, not in the controller, so no caller can forget it.
       requesterId: isStaff(actor) ? undefined : actor.id,
       page: query.page,

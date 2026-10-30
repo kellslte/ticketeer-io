@@ -1,5 +1,5 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ActorNotAllowedError, TicketNotFoundError } from '../domain/errors.js';
+import { ActorNotAllowedError, InvalidAssigneeError, TicketNotFoundError } from '../domain/errors.js';
 import { admin, agent, customer, otherCustomer } from '../domain/ticket.fixtures.js';
 import { CreateTicketUseCase } from './create-ticket.use-case.js';
 import { DeleteTicketUseCase } from './delete-ticket.use-case.js';
@@ -20,7 +20,7 @@ describe('ticket use-cases', () => {
     repo = new InMemoryTicketRepository();
     events = new EventEmitter2();
     create = new CreateTicketUseCase(repo, events);
-    update = new UpdateTicketUseCase(repo, events);
+    update = new UpdateTicketUseCase(repo, events, { isAgent: async (id) => id === agent.id || id === admin.id });
   });
 
   describe('create', () => {
@@ -57,6 +57,11 @@ describe('ticket use-cases', () => {
 
       await list.execute(agent, { ...query, status: 'open', sort: 'createdAt:desc' });
       expect(repo.lastSearch).toMatchObject({ requesterId: undefined, status: 'open', sort: 'desc', page: 2 });
+
+      await list.execute(agent, { ...query, assigneeId: 'me' });
+      expect(repo.lastSearch?.assigneeId).toBe(agent.id);
+      await list.execute(agent, { ...query, assigneeId: admin.id });
+      expect(repo.lastSearch?.assigneeId).toBe(admin.id);
     });
   });
 
@@ -88,6 +93,40 @@ describe('ticket use-cases', () => {
       const emit = vi.spyOn(events, 'emit');
       await update.execute(agent, id, { status: 'in_progress' });
       expect(emit).toHaveBeenCalledWith('TicketStatusChanged', expect.objectContaining({ from: 'open', to: 'in_progress' }));
+    });
+  });
+
+  describe('update — assignment', () => {
+    it('assigns an agent, moving an open ticket to in_progress', async () => {
+      const { id } = await create.execute(customer, input);
+      const result = await update.execute(agent, id, { assigneeId: agent.id });
+      expect(result).toMatchObject({ assigneeId: agent.id, status: 'in_progress' });
+    });
+
+    it('treats { status: in_progress, assigneeId } on an open ticket as one transition', async () => {
+      const { id } = await create.execute(customer, input);
+      const emit = vi.spyOn(events, 'emit');
+      const result = await update.execute(agent, id, { status: 'in_progress', assigneeId: agent.id });
+      expect(result).toMatchObject({ assigneeId: agent.id, status: 'in_progress' });
+      expect(emit.mock.calls.filter(([name]) => name === 'TicketStatusChanged')).toHaveLength(1);
+    });
+
+    it('unassigns with null and leaves the status alone', async () => {
+      const { id } = await create.execute(customer, input);
+      await update.execute(agent, id, { assigneeId: agent.id });
+      expect(await update.execute(agent, id, { assigneeId: null })).toMatchObject({ assigneeId: null, status: 'in_progress' });
+    });
+
+    it('rejects a non-agent assignee and saves nothing', async () => {
+      const { id } = await create.execute(customer, input);
+      const save = vi.spyOn(repo, 'save');
+      await expect(update.execute(agent, id, { assigneeId: otherCustomer.id })).rejects.toThrow(InvalidAssigneeError);
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it('forbids customers (403 wins over 422) even for their own ticket', async () => {
+      const { id } = await create.execute(customer, input);
+      await expect(update.execute(customer, id, { assigneeId: otherCustomer.id })).rejects.toThrow(ActorNotAllowedError);
     });
   });
 

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsString, Length, ValidateIf } from 'class-validator';
+import { IsIn, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 import { trim } from '../../../../shared/dto/transforms.js';
 import { DESCRIPTION_MAX, DESCRIPTION_MIN, TITLE_MAX, TITLE_MIN } from '../../domain/ticket-fields.js';
 import { TicketStatus } from '../../domain/ticket-status.js';
@@ -17,4 +17,9 @@ export class UpdateTicketDto {
   @ValidateIf((o: UpdateTicketDto) => o.status !== undefined)
   @IsIn(Object.values(TicketStatus))
   status?: TicketStatus;
+
+  /** A user id to assign, or `null` to unassign. */
+  @ValidateIf((o: UpdateTicketDto) => o.assigneeId !== undefined && o.assigneeId !== null)
+  @IsUUID()
+  assigneeId?: string | null;
 }

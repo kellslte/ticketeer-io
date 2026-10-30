@@ -273,7 +273,8 @@ describe.runIf(hasDatabase)('tickets API (e2e)', () => {
       ['a null title', { title: null }],
       ['a too-short title', { title: 'abc' }],
       ['an unknown field', { priority: 'high' }],
-      ['assigneeId (not supported until assignment is built)', { assigneeId: UNKNOWN_ID }],
+      ['a malformed assigneeId', { assigneeId: 'not-a-uuid' }],
+      ['a numeric assigneeId', { assigneeId: 42 }],
     ])('rejects %s', async (_label, body) => {
       const t = await create();
       await patch(agent, t.id, body).expect(400);
@@ -298,6 +299,164 @@ describe.runIf(hasDatabase)('tickets API (e2e)', () => {
       expect(res.body.error.code).toBe('CONCURRENT_MODIFICATION');
       expect((await http().get(`/api/v1/tickets/${t.id}`).set(agent.auth)).body.data.status).toBe('open');
       save.mockRestore();
+    });
+  });
+
+  describe('PATCH /tickets/:id — assignment', () => {
+    const detail = async (id: string) => (await http().get(`/api/v1/tickets/${id}`).set(admin.auth)).body.data;
+
+    it('assigns an agent and starts work on an open ticket', async () => {
+      const t = await create();
+      const res = await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      expect(res.body.data).toMatchObject({ assigneeId: agent.user.id, status: 'in_progress' });
+    });
+
+    it('lets an admin assign, including to themselves or to another admin', async () => {
+      const t = await create();
+      expect((await patch(admin, t.id, { assigneeId: admin.user.id }).expect(200)).body.data.assigneeId).toBe(admin.user.id);
+    });
+
+    it('emits TicketAssigned and TicketStatusChanged when assigning an open ticket', async () => {
+      const t = await create();
+      const emit = vi.spyOn(app.get(EventEmitter2), 'emit');
+      await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      const names = emit.mock.calls.map(([name]) => name);
+      expect(names).toEqual(['TicketAssigned', 'TicketStatusChanged']);
+      emit.mockRestore();
+    });
+
+    it.each(['in_progress', 'resolved'] as const)('keeps the status when assigning a %s ticket', async (status) => {
+      const t = await createIn(status);
+      const res = await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      expect(res.body.data.status).toBe(status);
+    });
+
+    it('reassigns to another agent and unassigns with null, without touching the status', async () => {
+      const second = await createUser(app, 'agent');
+      const t = await create();
+      await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      expect((await patch(admin, t.id, { assigneeId: second.user.id }).expect(200)).body.data.assigneeId).toBe(second.user.id);
+      const cleared = await patch(agent, t.id, { assigneeId: null }).expect(200);
+      expect(cleared.body.data).toMatchObject({ assigneeId: null, status: 'in_progress' });
+    });
+
+    it('treats unassigning an unassigned ticket, and re-assigning the same agent, as harmless', async () => {
+      const t = await create();
+      expect((await patch(agent, t.id, { assigneeId: null }).expect(200)).body.data.assigneeId).toBeNull();
+      await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      const emit = vi.spyOn(app.get(EventEmitter2), 'emit');
+      await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      expect(emit).not.toHaveBeenCalled();
+      emit.mockRestore();
+    });
+
+    it('rejects an assignee who is a customer, unknown, or not found — 422 INVALID_ASSIGNEE, ticket untouched', async () => {
+      const t = await create();
+      for (const assigneeId of [bob.user.id, alice.user.id, UNKNOWN_ID]) {
+        const res = await patch(agent, t.id, { assigneeId }).expect(422);
+        expect(res.body.error.code).toBe('INVALID_ASSIGNEE');
+      }
+      expect(await detail(t.id)).toMatchObject({ assigneeId: null, status: 'open' });
+    });
+
+    it('forbids customers from assigning, even their own ticket or a non-agent target (403 beats 422)', async () => {
+      const t = await create();
+      for (const assigneeId of [agent.user.id, bob.user.id, null]) {
+        expect((await patch(alice, t.id, { assigneeId }).expect(403)).body.error.code).toBe('FORBIDDEN');
+      }
+      await patch(bob, t.id, { assigneeId: agent.user.id }).expect(404);
+      expect(await detail(t.id)).toMatchObject({ assigneeId: null, status: 'open' });
+    });
+
+    it('rejects assigning or unassigning a closed ticket with TICKET_CLOSED', async () => {
+      const t = await createIn('closed');
+      expect((await patch(agent, t.id, { assigneeId: agent.user.id }).expect(409)).body.error.code).toBe('TICKET_CLOSED');
+      expect((await patch(agent, t.id, { assigneeId: null }).expect(409)).body.error.code).toBe('TICKET_CLOSED');
+    });
+
+    it('404s assigning an unknown ticket', async () => {
+      await patch(agent, UNKNOWN_ID, { assigneeId: agent.user.id }).expect(404);
+    });
+
+    it('accepts { status: in_progress, assigneeId } on an open ticket as a single transition', async () => {
+      const t = await create();
+      const emit = vi.spyOn(app.get(EventEmitter2), 'emit');
+      const res = await patch(agent, t.id, { status: 'in_progress', assigneeId: agent.user.id }).expect(200);
+      expect(res.body.data).toMatchObject({ status: 'in_progress', assigneeId: agent.user.id });
+      expect(emit.mock.calls.filter(([name]) => name === 'TicketStatusChanged')).toHaveLength(1);
+      emit.mockRestore();
+    });
+
+    it('is atomic: an illegal status alongside a valid assignee assigns nothing', async () => {
+      const t = await create();
+      await patch(agent, t.id, { status: 'resolved', assigneeId: agent.user.id }).expect(409);
+      expect(await detail(t.id)).toMatchObject({ assigneeId: null, status: 'open' });
+    });
+
+    it('is atomic: a customer mixing an edit with an assignment changes nothing', async () => {
+      const t = await create();
+      await patch(alice, t.id, { title: 'Sneaky new title', assigneeId: agent.user.id }).expect(403);
+      expect(await detail(t.id)).toMatchObject({ title: 'Printer is on fire', assigneeId: null });
+    });
+
+    it('lets the customer see who their ticket is assigned to', async () => {
+      const t = await create();
+      await patch(agent, t.id, { assigneeId: agent.user.id }).expect(200);
+      const res = await http().get(`/api/v1/tickets/${t.id}`).set(alice.auth).expect(200);
+      expect(res.body.data.assigneeId).toBe(agent.user.id);
+    });
+  });
+
+  describe('GET /tickets — assignee filter', () => {
+    let second: Person;
+    beforeEach(async () => {
+      second = await createUser(app, 'agent');
+    });
+
+    const seed = async () => {
+      const mine = await create(alice, 'Assigned to the first agent');
+      const theirs = await create(alice, 'Assigned to the second agent');
+      const open = await create(bob, 'Not assigned to anyone');
+      await patch(agent, mine.id, { assigneeId: agent.user.id }).expect(200);
+      await patch(agent, theirs.id, { assigneeId: second.user.id }).expect(200);
+      return { mine, theirs, open };
+    };
+    const ids = (res: request.Response) => res.body.data.items.map((t: { id: string }) => t.id);
+
+    it('filters by a specific assignee', async () => {
+      const { mine } = await seed();
+      const res = await http().get(`/api/v1/tickets?assigneeId=${agent.user.id}`).set(admin.auth).expect(200);
+      expect(ids(res)).toEqual([mine.id]);
+      expect(res.body.data.meta.total).toBe(1);
+    });
+
+    it('supports assigneeId=me for the calling agent', async () => {
+      const { mine, theirs } = await seed();
+      expect(ids(await http().get('/api/v1/tickets?assigneeId=me').set(agent.auth).expect(200))).toEqual([mine.id]);
+      expect(ids(await http().get('/api/v1/tickets?assigneeId=me').set(second.auth).expect(200))).toEqual([theirs.id]);
+    });
+
+    it('combines with the status filter', async () => {
+      const { theirs } = await seed();
+      await patch(agent, theirs.id, { status: 'resolved' }).expect(200);
+      const resolvedForSecond = await http().get(`/api/v1/tickets?assigneeId=${second.user.id}&status=resolved`).set(admin.auth).expect(200);
+      expect(ids(resolvedForSecond)).toEqual([theirs.id]);
+      const openForSecond = await http().get(`/api/v1/tickets?assigneeId=${second.user.id}&status=open`).set(admin.auth).expect(200);
+      expect(ids(openForSecond)).toEqual([]);
+    });
+
+    it('never widens a customer’s view: their own tickets only', async () => {
+      const { mine, theirs } = await seed();
+      const res = await http().get(`/api/v1/tickets?assigneeId=${agent.user.id}`).set(alice.auth).expect(200);
+      expect(ids(res)).toEqual([mine.id]);
+      expect(ids(await http().get(`/api/v1/tickets?assigneeId=${second.user.id}`).set(bob.auth).expect(200))).toEqual([]);
+      expect(theirs.requesterId).toBe(alice.user.id);
+    });
+
+    it('returns nothing for assigneeId=me as a customer, and 400 for a malformed id', async () => {
+      await seed();
+      expect(ids(await http().get('/api/v1/tickets?assigneeId=me').set(alice.auth).expect(200))).toEqual([]);
+      expect((await http().get('/api/v1/tickets?assigneeId=nobody').set(agent.auth).expect(400)).body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 

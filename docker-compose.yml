@@ -1,0 +1,15 @@
+# Port 5433 so it doesn't clash with a Postgres already running on 5432.
+services:
+  db:
+    image: postgres:16
+    ports: ['5433:5432']
+    environment:
+      POSTGRES_USER: ticketeer
+      POSTGRES_PASSWORD: ticketeer
+      POSTGRES_DB: ticketeer
+    volumes:
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

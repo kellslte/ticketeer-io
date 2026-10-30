@@ -1,0 +1,28 @@
+/** Machine-readable codes for framework-raised HTTP errors. Clients key on `error.code`. */
+export const HTTP_STATUS_TO_CODE: Record<number, string> = {
+  400: 'VALIDATION_ERROR',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  405: 'METHOD_NOT_ALLOWED',
+  409: 'CONFLICT',
+  413: 'PAYLOAD_TOO_LARGE',
+  422: 'UNPROCESSABLE_ENTITY',
+  429: 'TOO_MANY_REQUESTS',
+  500: 'INTERNAL_SERVER_ERROR',
+  503: 'SERVICE_UNAVAILABLE',
+};
+
+export const DEFAULT_ERROR_CODE = 'INTERNAL_SERVER_ERROR';
+
+/** DomainError.code -> HTTP status. A domain error missing here is a bug and surfaces as 500. */
+export const DOMAIN_ERROR_STATUS: Record<string, number> = {
+  TICKET_NOT_FOUND: 404,
+  INVALID_STATUS_TRANSITION: 409,
+  TICKET_CLOSED: 409,
+  CONCURRENT_MODIFICATION: 409,
+  FORBIDDEN: 403,
+  INVALID_ASSIGNEE: 422,
+  EMAIL_TAKEN: 409,
+  INVALID_CREDENTIALS: 401,
+};

@@ -6,5 +6,39 @@
   },
   "env": {
     "node": true
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/modules/**/domain/**/*.ts",
+        "src/shared/domain/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@nestjs/*",
+                  "drizzle-orm",
+                  "drizzle-orm/*",
+                  "pg"
+                ],
+                "message": "The domain layer must not depend on frameworks or the database."
+              },
+              {
+                "group": [
+                  "**/infrastructure/**",
+                  "**/interfaces/**",
+                  "**/application/**"
+                ],
+                "message": "Domain cannot import outward layers."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

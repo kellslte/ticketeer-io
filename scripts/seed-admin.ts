@@ -32,6 +32,7 @@ export async function seedAdmin(
     passwordHash: await new Argon2PasswordHasher().hash(password),
   });
   admin.changeRole('admin');
+  admin.verifyEmail(); // operator-provisioned, no inbox check needed
   await users.save(admin);
   return 'created';
 }

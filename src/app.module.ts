@@ -9,6 +9,7 @@ import { HealthController } from './health/health.controller.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { JwtAuthGuard } from './modules/identity/interfaces/http/jwt-auth.guard.js';
 import { RolesGuard } from './modules/identity/interfaces/http/roles.guard.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { TicketingModule } from './modules/ticketing/ticketing.module.js';
 import { AllExceptionsFilter } from './shared/errors/all-exceptions.filter.js';
 import { DatabaseModule } from './shared/infrastructure/database.module.js';
@@ -33,6 +34,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     DatabaseModule,
     IdentityModule,
     TicketingModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -25,7 +25,7 @@ export async function createApp(): Promise<INestApplication> {
 
 export async function resetDb(app: INestApplication): Promise<void> {
   const db = app.get<NodePgDatabase>(getDrizzleToken());
-  await db.execute(sql`truncate table tickets, users restart identity cascade`);
+  await db.execute(sql`truncate table tickets, users, outbox restart identity cascade`);
 }
 
 export const PASSWORD = 'correct-horse-battery';

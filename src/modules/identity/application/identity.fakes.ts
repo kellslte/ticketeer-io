@@ -1,3 +1,4 @@
+import type { RefreshTokenRecord, RefreshTokenStore } from '../domain/refresh-token.store.js';
 import type { PasswordHasher } from '../domain/password-hasher.js';
 import type { TokenIssuer } from '../domain/token-issuer.js';
 import type { User } from '../domain/user.js';
@@ -26,3 +27,25 @@ export const fakeHasher: PasswordHasher = {
 export const fakeTokens: TokenIssuer = {
   issue: async (user) => ({ accessToken: `token-for-${user.id}`, expiresIn: 900 }),
 };
+
+export class InMemoryRefreshTokenStore implements RefreshTokenStore {
+  readonly tokens = new Map<string, RefreshTokenRecord & { revoked: boolean }>();
+
+  async create({ tokenHash, ...record }: RefreshTokenRecord & { tokenHash: string }) {
+    this.tokens.set(tokenHash, { ...record, revoked: false });
+  }
+  async consume(tokenHash: string) {
+    const token = this.tokens.get(tokenHash);
+    if (!token) return null;
+    if (token.revoked) {
+      await this.revokeFamilyOf(tokenHash);
+      return null;
+    }
+    token.revoked = true;
+    return token;
+  }
+  async revokeFamilyOf(tokenHash: string) {
+    const familyId = this.tokens.get(tokenHash)?.familyId;
+    for (const t of this.tokens.values()) if (t.familyId === familyId) t.revoked = true;
+  }
+}

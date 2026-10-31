@@ -1,10 +1,14 @@
-import { CannotChangeOwnRoleError, EmailAlreadyRegisteredError, InvalidCredentialsError, UserNotFoundError } from '../domain/errors.js';
+import { CannotChangeOwnRoleError, EmailAlreadyRegisteredError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidVerificationTokenError, UserNotFoundError } from '../domain/errors.js';
 import { User } from '../domain/user.js';
 import { ChangeUserRoleUseCase } from './change-user-role.use-case.js';
 import { GetCurrentUserUseCase } from './get-current-user.use-case.js';
-import { fakeHasher, fakeTokens, InMemoryUserRepository } from './identity.fakes.js';
+import { fakeHasher, fakeTokens, InMemoryRefreshTokenStore, InMemoryUserRepository } from './identity.fakes.js';
 import { LoginUserUseCase } from './login-user.use-case.js';
 import { RegisterUserUseCase } from './register-user.use-case.js';
+import { ResendVerificationUseCase } from './resend-verification.use-case.js';
+import { SessionService } from './session.service.js';
+import { VerifyEmailUseCase } from './verify-email.use-case.js';
+import { EmailVerificationTokens } from '../infrastructure/email-verification-tokens.js';
 
 const dto = { email: ' Jane@Example.com ', password: 'long-enough-password', name: ' Jane ' };
 
@@ -12,11 +16,15 @@ describe('identity use-cases', () => {
   let users: InMemoryUserRepository;
   let register: RegisterUserUseCase;
   let login: LoginUserUseCase;
+  let sessions: SessionService;
+  let store: InMemoryRefreshTokenStore;
 
   beforeEach(() => {
     users = new InMemoryUserRepository();
     register = new RegisterUserUseCase(users, fakeHasher);
-    login = new LoginUserUseCase(users, fakeHasher, fakeTokens);
+    store = new InMemoryRefreshTokenStore();
+    sessions = new SessionService(fakeTokens, store, users);
+    login = new LoginUserUseCase(users, fakeHasher, sessions);
   });
 
   describe('register', () => {
@@ -39,7 +47,11 @@ describe('identity use-cases', () => {
 
     it('issues a token for valid credentials, ignoring email case', async () => {
       const result = await login.execute({ email: 'JANE@example.com', password: dto.password });
-      expect(result).toEqual({ accessToken: expect.stringContaining('token-for-'), expiresIn: 900 });
+      expect(result).toEqual({
+        accessToken: expect.stringContaining('token-for-'),
+        expiresIn: 900,
+        refreshToken: expect.any(String),
+      });
     });
 
     it('throws the same error for a wrong password and an unknown email', async () => {
@@ -55,6 +67,87 @@ describe('identity use-cases', () => {
       await login.execute({ email: 'who@example.com', password: 'x' }).catch(() => undefined);
       expect(verify).toHaveBeenCalledOnce();
       verify.mockRestore();
+    });
+  });
+
+  describe('refresh tokens', () => {
+    const credentials = { email: dto.email, password: dto.password };
+    beforeEach(() => register.execute(dto));
+
+    it('rotates: the old token stops working and a new pair is issued', async () => {
+      const first = await login.execute(credentials);
+      const second = await sessions.rotate(first.refreshToken);
+      expect(second.refreshToken).not.toBe(first.refreshToken);
+      expect(second.accessToken).toContain('token-for-');
+      await expect(sessions.rotate(second.refreshToken)).resolves.toBeDefined();
+    });
+
+    it('treats reuse of a rotated token as theft and revokes the whole family', async () => {
+      const first = await login.execute(credentials);
+      const second = await sessions.rotate(first.refreshToken);
+      await expect(sessions.rotate(first.refreshToken)).rejects.toThrow(InvalidRefreshTokenError);
+      await expect(sessions.rotate(second.refreshToken)).rejects.toThrow(InvalidRefreshTokenError);
+    });
+
+    it('does not revoke other logins (families)', async () => {
+      const a = await login.execute(credentials);
+      const b = await login.execute(credentials);
+      await sessions.logout(a.refreshToken);
+      await expect(sessions.rotate(a.refreshToken)).rejects.toThrow(InvalidRefreshTokenError);
+      await expect(sessions.rotate(b.refreshToken)).resolves.toBeDefined();
+    });
+
+    it('rejects unknown and expired tokens, and tokens of deleted accounts', async () => {
+      await expect(sessions.rotate('nope')).rejects.toThrow(InvalidRefreshTokenError);
+
+      const expired = await login.execute(credentials);
+      for (const t of store.tokens.values()) t.expiresAt = new Date(Date.now() - 1000);
+      await expect(sessions.rotate(expired.refreshToken)).rejects.toThrow(InvalidRefreshTokenError);
+
+      const orphan = await login.execute(credentials);
+      users.items.clear();
+      await expect(sessions.rotate(orphan.refreshToken)).rejects.toThrow(InvalidRefreshTokenError);
+    });
+  });
+
+  describe('email verification', () => {
+    const tokens = new EmailVerificationTokens('unit-test-secret');
+
+    it('registers unverified with a pending verification request, and verifies via a signed token', async () => {
+      const { id, emailVerified } = await register.execute(dto);
+      expect(emailVerified).toBe(false);
+      expect(users.items.get(id)?.pendingEvents).toHaveLength(1);
+
+      await new VerifyEmailUseCase(users, tokens).execute(tokens.issue(id));
+      expect(users.items.get(id)?.emailVerifiedAt).toBeInstanceOf(Date);
+    });
+
+    it('rejects forged, tampered, expired and unknown-user tokens', async () => {
+      const { id } = await register.execute(dto);
+      const verify = new VerifyEmailUseCase(users, tokens);
+      const good = tokens.issue(id);
+      const forged = new EmailVerificationTokens('other-secret').issue(id);
+      const tampered = good.replace(id, '00000000-0000-0000-0000-000000000000');
+      const expired = tokens.issue(id, Date.now() - 25 * 60 * 60 * 1000);
+      for (const bad of [forged, tampered, expired, 'garbage', '', `${good}.extra`, tokens.issue('ghost')]) {
+        await expect(verify.execute(bad)).rejects.toThrow(InvalidVerificationTokenError);
+      }
+      expect(users.items.get(id)?.emailVerifiedAt).toBeNull();
+    });
+
+    it('resend raises a new request only while unverified', async () => {
+      const { id } = await register.execute(dto);
+      const resend = new ResendVerificationUseCase(users);
+      const user = users.items.get(id)!;
+      user.pullEvents();
+      await resend.execute(id);
+      expect(user.pendingEvents).toHaveLength(1);
+
+      user.verifyEmail();
+      user.pullEvents();
+      await resend.execute(id);
+      expect(user.pendingEvents).toHaveLength(0);
+      await expect(resend.execute('missing')).rejects.toThrow(UserNotFoundError);
     });
   });
 

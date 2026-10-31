@@ -3,8 +3,10 @@ import { InjectDrizzle } from '@nestjs/drizzle';
 import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { EmailAlreadyRegisteredError } from '../domain/errors.js';
+import { EmailVerificationRequested } from '../domain/events.js';
 import { User } from '../domain/user.js';
 import type { UserRepository } from '../domain/user.repository.js';
+import { enqueue } from '../../../shared/infrastructure/outbox.table.js';
 import { users } from './users.table.js';
 
 const UNIQUE_VIOLATION = '23505';
@@ -38,13 +40,23 @@ export class DrizzleUserRepository implements UserRepository {
       name: user.name,
       passwordHash: user.passwordHash,
       role: user.role,
+      emailVerifiedAt: user.emailVerifiedAt,
       createdAt: user.createdAt,
     };
     try {
-      await this.db
-        .insert(users)
-        .values(row)
-        .onConflictDoUpdate({ target: users.id, set: { name: row.name, passwordHash: row.passwordHash, role: row.role } });
+      // The outbox rows commit with the user, so a verification email is never lost or sent for a rolled-back signup.
+      await this.db.transaction(async (tx) => {
+        await tx
+          .insert(users)
+          .values(row)
+          .onConflictDoUpdate({
+            target: users.id,
+            set: { name: row.name, passwordHash: row.passwordHash, role: row.role, emailVerifiedAt: row.emailVerifiedAt },
+          });
+        for (const event of user.pendingEvents) {
+          if (event instanceof EmailVerificationRequested && !user.emailVerifiedAt) await enqueue(tx, 'user.verify_email', { userId: user.id });
+        }
+      });
     } catch (error) {
       if (isUniqueViolation(error)) throw new EmailAlreadyRegisteredError();
       throw error;

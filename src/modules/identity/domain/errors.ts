@@ -14,6 +14,20 @@ export class InvalidCredentialsError extends DomainError {
   }
 }
 
+export class InvalidRefreshTokenError extends DomainError {
+  readonly code = 'INVALID_REFRESH_TOKEN';
+  constructor() {
+    super('Invalid or expired refresh token');
+  }
+}
+
+export class InvalidVerificationTokenError extends DomainError {
+  readonly code = 'INVALID_VERIFICATION_TOKEN';
+  constructor() {
+    super('Invalid or expired verification token');
+  }
+}
+
 export class UserNotFoundError extends DomainError {
   readonly code = 'USER_NOT_FOUND';
   constructor() {

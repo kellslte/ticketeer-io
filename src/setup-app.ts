@@ -13,7 +13,7 @@ export function applyAppSettings(app: INestApplication): void {
   // would be one shared bucket for all users. Opt in explicitly: trusting X-Forwarded-For when
   // there is no proxy would let any client spoof its IP and dodge the limit.
   // A number = proxy hops to trust; otherwise an Express list such as "loopback, 10.0.0.0/8".
-  const trustProxy = config.get<string>('TRUST_PROXY');
+  const trustProxy = process.env.TRUST_PROXY || config.get<string>('TRUST_PROXY');
   if (trustProxy) {
     app.getHttpAdapter().getInstance().set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
   }

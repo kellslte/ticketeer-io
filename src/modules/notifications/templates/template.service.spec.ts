@@ -14,7 +14,7 @@ describe('TemplateService', () => {
         expiresInHours: 24,
       });
 
-      expect(result.subject).toBe('Verify your email address · Ticketeer');
+      expect(result.subject).toBe('Verify your email');
       expect(result.html).toContain('Jane Doe');
       expect(result.html).toContain('https://ticketeer.io/verify?token=abc-123');
       expect(result.html).toContain('24 hours');
@@ -79,7 +79,7 @@ describe('TemplateService', () => {
         expiresInHours: 48,
       });
 
-      expect(result.subject).toBe('Verify your email address · Ticketeer');
+      expect(result.subject).toBe('Verify your email');
       expect(result.html).toContain('Jane Doe');
       expect(result.html).toContain('https://ticketeer.io/verify?token=abc-123');
       expect(result.html).toContain('Expires in 48 hours');

@@ -151,7 +151,7 @@ export class TemplateService {
   private buildSubject(templateName: EmailTemplateName, data: any): string {
     switch (templateName) {
       case 'verify-email':
-        return 'Verify your email address · Ticketeer';
+        return 'Verify your email';
       case 'ticket-assigned': {
         const d = data as TicketAssignedTemplateData;
         return `[Ticket #${d.ticketId}] Assigned to you: ${d.ticketTitle}`;

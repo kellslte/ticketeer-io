@@ -45,7 +45,7 @@ describe('NotificationHandler', () => {
     expect(mailer.sent).toHaveLength(1);
     const sent = mailer.sent[0]!;
     expect(sent.to).toBe('jane@example.com');
-    expect(sent.subject).toBe('Verify your email address · Ticketeer');
+    expect(sent.subject).toBe('Verify your email');
     expect(sent.text).toContain('Hi Jane Doe,');
     expect(sent.text).toContain('https://ticketeer.io/api/v1/auth/verify-email?token=');
     expect(sent.html).toBeDefined();

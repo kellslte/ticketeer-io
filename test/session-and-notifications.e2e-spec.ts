@@ -110,6 +110,8 @@ describe.runIf(hasDatabase)('refresh tokens, verification email and outbox (e2e)
 
     it('resend queues another email only while unverified', async () => {
       const { auth, user } = await createUser(app, 'customer', 'again@example.com');
+      await worker.drain(); // flush the verification email queued by registration
+      sent = [];
       await http().post('/api/v1/auth/resend-verification').set(auth).expect(202);
       expect(await worker.drain()).toBe(1);
       expect(sent[0]?.to).toBe(user.email);
@@ -121,6 +123,8 @@ describe.runIf(hasDatabase)('refresh tokens, verification email and outbox (e2e)
       const customer = await createUser(app, 'customer', 'req@example.com');
       const agent = await createUser(app, 'agent', 'agent@example.com');
       const admin = await createUser(app, 'admin', 'boss@example.com');
+      await worker.drain(); // flush the verification emails queued by registration
+      sent = [];
       const created = await http()
         .post('/api/v1/tickets')
         .set(customer.auth)

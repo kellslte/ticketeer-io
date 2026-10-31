@@ -1,0 +1,93 @@
+<!-- Header -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+  <tr>
+    <td align="left">
+      <div style="display: inline-block; width: 44px; height: 44px; border-radius: 10px; background-color: #EEF2FF; border: 1px solid #C7D2FE; text-align: center; line-height: 44px; margin-bottom: 16px;">
+        <span style="font-size: 20px;">🔄</span>
+      </div>
+      <h1 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 700; color: #0F172A; letter-spacing: -0.02em;">
+        Your ticket status has been updated
+      </h1>
+      <p style="margin: 0; font-size: 15px; line-height: 24px; color: #475569;">
+        Hi <strong>{{requesterName}}</strong>, there has been an update on your support request.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Status Transition Visual Pill -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 24px;">
+  <tr>
+    <td align="center" style="padding: 18px 20px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td valign="middle" align="center">
+            <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 600; color: #64748B; letter-spacing: 0.05em; margin-bottom: 6px;">Previous</span>
+            {{{statusBadge fromStatus}}}
+          </td>
+          <td valign="middle" align="center" style="padding: 16px 18px 0 18px; font-size: 18px; color: #94A3B8; font-weight: bold;">
+            &rarr;
+          </td>
+          <td valign="middle" align="center">
+            <span style="display: block; font-size: 11px; text-transform: uppercase; font-weight: 600; color: #64748B; letter-spacing: 0.05em; margin-bottom: 6px;">Current Status</span>
+            {{{statusBadge toStatus}}}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Ticket Card Details -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 24px;">
+  <tr>
+    <td style="padding: 20px;">
+      <span style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: #64748B; display: block; margin-bottom: 6px;">
+        TICKET #{{ticketId}}
+      </span>
+      <h2 style="margin: 0 0 12px 0; font-size: 17px; font-weight: 700; color: #0F172A; line-height: 24px;">
+        {{ticketTitle}}
+      </h2>
+      <p style="margin: 0; font-size: 13px; color: #64748B; line-height: 18px;">
+        Status changed to <strong>{{statusLabel toStatus}}</strong>. You can follow the latest conversation and updates on your ticket page.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Primary CTA Button -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0;">
+  <tr>
+    <td align="center">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{{ticketUrl}}}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="18%" stroke="f" fillcolor="#4F46E5">
+        <w:anchorlock/>
+        <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">View Ticket Details</center>
+      </v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-->
+      <a href="{{{ticketUrl}}}" target="_blank" class="btn-primary" style="display: inline-block; background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); background-color: #4F46E5; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.25), 0 2px 4px -2px rgba(79, 70, 229, 0.15); text-align: center; letter-spacing: 0.01em;">
+        View Ticket Details &rarr;
+      </a>
+      <!--<![endif]-->
+    </td>
+  </tr>
+</table>
+
+<!-- Direct Link Fallback -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; margin-bottom: 20px;">
+  <tr>
+    <td style="padding: 14px 16px;">
+      <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+        Direct Ticket Link:
+      </p>
+      <p style="margin: 0; font-size: 12px; color: #4F46E5; word-break: break-all; font-family: ui-monospace, Menlo, monospace; line-height: 18px;">
+        <a href="{{{ticketUrl}}}" style="color: #4F46E5; text-decoration: underline;">{{{ticketUrl}}}</a>
+      </p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: #94A3B8;">
+  Have additional questions or information to provide? Simply click the button above to leave a reply on your ticket.
+</p>

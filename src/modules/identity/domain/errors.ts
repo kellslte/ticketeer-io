@@ -14,6 +14,13 @@ export class InvalidCredentialsError extends DomainError {
   }
 }
 
+export class AccountLockedError extends DomainError {
+  readonly code = 'ACCOUNT_LOCKED';
+  constructor(message = 'Account is temporarily locked due to too many failed login attempts. Please try again in 30 minutes.') {
+    super(message);
+  }
+}
+
 export class InvalidRefreshTokenError extends DomainError {
   readonly code = 'INVALID_REFRESH_TOKEN';
   constructor() {

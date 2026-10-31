@@ -1,4 +1,12 @@
-import { CannotChangeOwnRoleError, EmailAlreadyRegisteredError, InvalidCredentialsError, InvalidRefreshTokenError, InvalidVerificationTokenError, UserNotFoundError } from '../domain/errors.js';
+import {
+  AccountLockedError,
+  CannotChangeOwnRoleError,
+  EmailAlreadyRegisteredError,
+  InvalidCredentialsError,
+  InvalidRefreshTokenError,
+  InvalidVerificationTokenError,
+  UserNotFoundError,
+} from '../domain/errors.js';
 import { User } from '../domain/user.js';
 import { ChangeUserRoleUseCase } from './change-user-role.use-case.js';
 import { GetCurrentUserUseCase } from './get-current-user.use-case.js';
@@ -67,6 +75,120 @@ describe('identity use-cases', () => {
       await login.execute({ email: 'who@example.com', password: 'x' }).catch(() => undefined);
       expect(verify).toHaveBeenCalledOnce();
       verify.mockRestore();
+    });
+
+    describe('account lockout', () => {
+      it('locks out user after 5 failed login attempts for 30 minutes', async () => {
+        const email = 'jane@example.com';
+        const wrongPassword = 'wrong-password';
+
+        // Attempts 1 to 4 throw InvalidCredentialsError
+        for (let i = 1; i <= 4; i++) {
+          await expect(login.execute({ email, password: wrongPassword })).rejects.toThrow(InvalidCredentialsError);
+          const user = await users.findByEmail(email);
+          expect(user?.failedLoginAttempts).toBe(i);
+          expect(user?.isLocked()).toBe(false);
+        }
+
+        // 5th attempt locks out the account and throws AccountLockedError
+        await expect(login.execute({ email, password: wrongPassword })).rejects.toThrow(AccountLockedError);
+        const lockedUser = await users.findByEmail(email);
+        expect(lockedUser?.failedLoginAttempts).toBe(5);
+        expect(lockedUser?.isLocked()).toBe(true);
+        expect(lockedUser?.lockedUntil).not.toBeNull();
+        // Lockout is for 30 minutes
+        const diffMs = lockedUser!.lockedUntil!.getTime() - Date.now();
+        expect(diffMs).toBeGreaterThan(29 * 60 * 1000);
+        expect(diffMs).toBeLessThanOrEqual(30 * 60 * 1000);
+      });
+
+      it('rejects subsequent login attempts with AccountLockedError during lockout even with correct password', async () => {
+        const email = 'jane@example.com';
+        // Fail 5 times to lock out
+        for (let i = 0; i < 5; i++) {
+          await login.execute({ email, password: 'wrong' }).catch(() => undefined);
+        }
+
+        // Now attempt with the correct password while locked
+        await expect(login.execute({ email, password: dto.password })).rejects.toThrow(AccountLockedError);
+      });
+
+      it('resets failed attempt counter upon successful login before reaching 5 attempts', async () => {
+        const email = 'jane@example.com';
+        // 2 failures
+        await expect(login.execute({ email, password: 'wrong' })).rejects.toThrow(InvalidCredentialsError);
+        await expect(login.execute({ email, password: 'wrong' })).rejects.toThrow(InvalidCredentialsError);
+        expect((await users.findByEmail(email))?.failedLoginAttempts).toBe(2);
+
+        // Successful login
+        const res = await login.execute({ email, password: dto.password });
+        expect(res.accessToken).toBeDefined();
+
+        const user = await users.findByEmail(email);
+        expect(user?.failedLoginAttempts).toBe(0);
+        expect(user?.lockedUntil).toBeNull();
+      });
+
+      it('allows login after 30-minute lockout expires and resets lockout state', async () => {
+        const email = 'jane@example.com';
+        for (let i = 0; i < 5; i++) {
+          await login.execute({ email, password: 'wrong' }).catch(() => undefined);
+        }
+
+        const lockedUser = await users.findByEmail(email);
+        expect(lockedUser?.isLocked()).toBe(true);
+
+        // Fast-forward past 30 minutes
+        const now = new Date(Date.now() + 31 * 60 * 1000);
+        expect(lockedUser?.isLocked(now)).toBe(false);
+
+        // Manually adjust the lockedUntil to be in the past to simulate time passing
+        const expiredUser = User.rehydrate({
+          id: lockedUser!.id,
+          email: lockedUser!.email,
+          name: lockedUser!.name,
+          passwordHash: lockedUser!.passwordHash,
+          role: lockedUser!.role,
+          emailVerifiedAt: lockedUser!.emailVerifiedAt,
+          createdAt: lockedUser!.createdAt,
+          failedLoginAttempts: 5,
+          lockedUntil: new Date(Date.now() - 1000), // expired 1 sec ago
+        });
+        await users.save(expiredUser);
+
+        // Login with correct password now succeeds
+        const res = await login.execute({ email, password: dto.password });
+        expect(res.accessToken).toBeDefined();
+
+        const recoveredUser = await users.findByEmail(email);
+        expect(recoveredUser?.failedLoginAttempts).toBe(0);
+        expect(recoveredUser?.lockedUntil).toBeNull();
+        expect(recoveredUser?.isLocked()).toBe(false);
+      });
+
+      it('starts a new attempt cycle if user fails password again after previous lockout expired', async () => {
+        const email = 'jane@example.com';
+        const user = await users.findByEmail(email);
+        const expiredUser = User.rehydrate({
+          id: user!.id,
+          email: user!.email,
+          name: user!.name,
+          passwordHash: user!.passwordHash,
+          role: user!.role,
+          emailVerifiedAt: user!.emailVerifiedAt,
+          createdAt: user!.createdAt,
+          failedLoginAttempts: 5,
+          lockedUntil: new Date(Date.now() - 1000), // expired
+        });
+        await users.save(expiredUser);
+
+        // Next wrong password should reset counter to 1 and throw InvalidCredentialsError (not AccountLockedError)
+        await expect(login.execute({ email, password: 'wrong-again' })).rejects.toThrow(InvalidCredentialsError);
+
+        const updatedUser = await users.findByEmail(email);
+        expect(updatedUser?.failedLoginAttempts).toBe(1);
+        expect(updatedUser?.isLocked()).toBe(false);
+      });
     });
   });
 

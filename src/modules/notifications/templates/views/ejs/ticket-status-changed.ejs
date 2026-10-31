@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= subject %></title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; width: 100%;">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 600px; margin: 0 auto;">
+          <tr>
+            <td align="center" style="padding-bottom: 24px;">
+              <span style="font-size: 22px; font-weight: 700; color: #0F172A;">Ticketeer</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E2E8F0; padding: 36px;">
+              <h1 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 700; color: #0F172A;">Ticket Status Updated</h1>
+              <p style="margin: 0 0 20px 0; font-size: 15px; color: #475569;">
+                Hi <strong><%= requesterName %></strong>, your ticket <strong>#<%= ticketId %></strong> has been updated.
+              </p>
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                <h2 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #0F172A;"><%= ticketTitle %></h2>
+                <span style="font-size: 13px; color: #64748B;">Status changed from <strong><%= fromStatus %></strong> to <strong><%= toStatus %></strong></span>
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 20px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="<%= ticketUrl %>" style="display: inline-block; background-color: #4F46E5; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px;">
+                      View Ticket &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding: 24px 16px; font-size: 12px; color: #94A3B8;">
+              &copy; <%= year %> Ticketeer, Inc. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+

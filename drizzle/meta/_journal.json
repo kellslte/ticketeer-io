@@ -15,6 +15,13 @@
       "when": 1793419599580,
       "tag": "0001_pale_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793430606268,
+      "tag": "0002_regular_starfox",
+      "breakpoints": true
     }
   ]
 }

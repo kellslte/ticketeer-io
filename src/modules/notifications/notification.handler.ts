@@ -4,6 +4,7 @@ import { USER_REPOSITORY, type UserRepository } from '../identity/domain/user.re
 import { EmailVerificationTokens } from '../identity/infrastructure/email-verification-tokens.js';
 import { TICKET_REPOSITORY, type TicketRepository } from '../ticketing/domain/ticket.repository.js';
 import { MAILER, type Mailer } from './mailer.js';
+import { TemplateService } from './templates/template.service.js';
 
 type Payload = Record<string, string>;
 
@@ -21,6 +22,7 @@ export class NotificationHandler {
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
     @Inject(TICKET_REPOSITORY) private readonly tickets: TicketRepository,
     private readonly verification: EmailVerificationTokens,
+    private readonly templates: TemplateService,
     config: ConfigService,
   ) {
     this.appUrl = config.get<string>('APP_URL') || 'http://localhost:3000';
@@ -32,29 +34,57 @@ export class NotificationHandler {
         const user = await this.users.findById(p.userId!);
         if (!user || user.emailVerifiedAt) return;
         const link = `${this.appUrl}/api/v1/auth/verify-email?token=${encodeURIComponent(this.verification.issue(user.id))}`;
+        const email = this.templates.render('verify-email', {
+          name: user.name,
+          verifyUrl: link,
+          expiresInHours: 24,
+        });
         return this.mailer.send({
           to: user.email,
-          subject: 'Verify your email',
-          text: `Hi ${user.name},\n\nConfirm your email address within 24 hours:\n${link}\n`,
+          subject: email.subject,
+          text: email.text,
+          html: email.html,
         });
       }
       case 'ticket.assigned': {
         const [ticket, assignee] = await Promise.all([this.tickets.findById(p.ticketId!), this.users.findById(p.assigneeId!)]);
         if (!ticket || !assignee) return;
+        const ticketUrl = `${this.appUrl}/tickets/${ticket.id}`;
+        const email = this.templates.render('ticket-assigned', {
+          assigneeName: assignee.name,
+          ticketId: ticket.id,
+          ticketTitle: ticket.title,
+          ticketDescription: ticket.description,
+          ticketStatus: ticket.status,
+          ticketUrl,
+          assignedAt: new Date().toISOString(),
+        });
         return this.mailer.send({
           to: assignee.email,
-          subject: `Ticket assigned to you: ${ticket.title}`,
-          text: `Hi ${assignee.name},\n\n"${ticket.title}" (${ticket.id}) was assigned to you.\n`,
+          subject: email.subject,
+          text: email.text,
+          html: email.html,
         });
       }
       case 'ticket.status_changed': {
         const ticket = await this.tickets.findById(p.ticketId!);
         const requester = ticket && (await this.users.findById(ticket.requesterId));
         if (!ticket || !requester) return;
+        const ticketUrl = `${this.appUrl}/tickets/${ticket.id}`;
+        const email = this.templates.render('ticket-status-changed', {
+          requesterName: requester.name,
+          ticketId: ticket.id,
+          ticketTitle: ticket.title,
+          fromStatus: p.from!,
+          toStatus: p.to!,
+          ticketUrl,
+          updatedAt: new Date().toISOString(),
+        });
         return this.mailer.send({
           to: requester.email,
-          subject: `Your ticket is now ${p.to}: ${ticket.title}`,
-          text: `Hi ${requester.name},\n\n"${ticket.title}" changed from ${p.from} to ${p.to}.\n`,
+          subject: email.subject,
+          text: email.text,
+          html: email.html,
         });
       }
       default:

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{subject}}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a, span { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+  <style type="text/css">
+    body {
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      background-color: #F8FAFC;
+      color: #0F172A;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    table {
+      border-spacing: 0;
+      border-collapse: collapse;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    td {
+      padding: 0;
+    }
+    img {
+      border: 0;
+      outline: none;
+      text-decoration: none;
+      -ms-interpolation-mode: bicubic;
+    }
+    a {
+      color: #4F46E5;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .btn-primary:hover {
+      background-color: #4338CA !important;
+    }
+    @media only screen and (max-width: 620px) {
+      .email-container {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .email-card {
+        padding: 24px 18px !important;
+        border-radius: 8px !important;
+      }
+      .mobile-padding {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <!-- Hidden Preview Text -->
+  {{#if previewText}}
+  <div style="display: none; font-size: 1px; color: #F8FAFC; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+    {{previewText}}
+  </div>
+  {{/if}}
+
+  <!-- Outer wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; width: 100%;">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+        <!-- Email Container (max 600px) -->
+        <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 600px; margin: 0 auto;">
+          
+          <!-- BRAND HEADER -->
+          <tr>
+            <td align="center" style="padding-bottom: 24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <!-- Brand Logo Badge -->
+                  <td valign="middle" style="padding-right: 12px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-radius: 10px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); background-color: #4F46E5; width: 40px; height: 40px;">
+                      <tr>
+                        <td align="center" valign="middle" style="width: 40px; height: 40px; color: #FFFFFF; font-weight: bold; font-size: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                          <!-- Ticket Icon Graphic -->
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                            <path d="M4 8C4 6.89543 4.89543 6 6 6H18C19.1046 6 20 6.89543 20 8C18.8954 8 18 8.89543 18 10C18 11.1046 18.8954 12 20 12C20 13.1046 18.8954 14 18 15C18 16.1046 18.8954 17 20 17C20 18.1046 19.1046 19 18 19H6C4.89543 19 4 18.1046 4 17C5.10457 17 6 16.1046 6 15C6 13.1046 4 12 4 12C4 12 6 11.1046 6 10C6 8.89543 5.10457 8 4 8Z" fill="#FFFFFF" fill-opacity="0.95" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path d="M12 9V15M9 12H15" stroke="#4F46E5" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <!-- Brand Name & Badge -->
+                  <td valign="middle" align="left">
+                    <span style="font-size: 22px; font-weight: 700; color: #0F172A; letter-spacing: -0.02em; display: inline-block; vertical-align: middle;">Ticketeer</span>
+                    <span style="display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 7px; background-color: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 9999px; font-size: 11px; font-weight: 600; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.05em;">Support</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- MAIN CARD -->
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 2px 4px -2px rgba(15, 23, 42, 0.02); overflow: hidden;">
+                <!-- Card Header Accent Top Stripe -->
+                <tr>
+                  <td height="4" style="background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 50%, #0EA5E9 100%); background-color: #4F46E5; height: 4px; line-height: 4px; font-size: 4px;">&nbsp;</td>
+                </tr>
+
+                <!-- Content Body -->
+                <tr>
+                  <td class="email-card" style="padding: 36px 36px;">
+                    {{{body}}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="padding: 32px 16px 16px 16px; text-align: center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-size: 13px; color: #64748B; line-height: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+                    <p style="margin: 0 0 12px 0; font-weight: 500;">
+                      <strong>Ticketeer</strong> &middot; Fast, reliable customer support and ticket management.
+                    </p>
+                    <p style="margin: 0 0 14px 0; color: #94A3B8; font-size: 12px;">
+                      <a href="{{appUrl}}" style="color: #64748B; text-decoration: underline;">App Dashboard</a> &nbsp;&bull;&nbsp;
+                      <a href="{{appUrl}}/docs" style="color: #64748B; text-decoration: underline;">Help Center</a> &nbsp;&bull;&nbsp;
+                      <a href="mailto:support@ticketeer.io" style="color: #64748B; text-decoration: underline;">Contact Support</a>
+                    </p>
+                    <p style="margin: 0; font-size: 11px; color: #94A3B8; line-height: 16px;">
+                      This is an automated notification from Ticketeer. You received this email because you are registered on Ticketeer.<br>
+                      &copy; {{year}} Ticketeer, Inc. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+

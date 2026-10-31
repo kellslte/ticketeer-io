@@ -1,0 +1,102 @@
+<!-- Header -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+  <tr>
+    <td align="left">
+      <div style="display: inline-block; width: 44px; height: 44px; border-radius: 10px; background-color: #EEF2FF; border: 1px solid #C7D2FE; text-align: center; line-height: 44px; margin-bottom: 16px;">
+        <span style="font-size: 20px;">🎯</span>
+      </div>
+      <h1 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 700; color: #0F172A; letter-spacing: -0.02em;">
+        New ticket assigned to you
+      </h1>
+      <p style="margin: 0; font-size: 15px; line-height: 24px; color: #475569;">
+        Hi <strong>{{assigneeName}}</strong>, a support ticket has just been assigned to you. Here are the details:
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Ticket Card -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; margin-bottom: 24px;">
+  <tr>
+    <td style="padding: 20px;">
+      <!-- Ticket Metadata Top Row -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 12px;">
+        <tr>
+          <td align="left" valign="middle">
+            <span style="font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: #64748B;">
+              #{{ticketId}}
+            </span>
+          </td>
+          <td align="right" valign="middle">
+            {{{statusBadge ticketStatus}}}
+          </td>
+        </tr>
+      </table>
+
+      <!-- Ticket Title -->
+      <h2 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 700; color: #0F172A; line-height: 24px;">
+        {{ticketTitle}}
+      </h2>
+
+      <!-- Ticket Description (if available) -->
+      {{#if ticketDescription}}
+      <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 22px; color: #475569; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px 14px;">
+        {{ticketDescription}}
+      </p>
+      {{/if}}
+
+      <!-- Additional Details Grid -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 1px solid #E2E8F0; padding-top: 12px; margin-top: 12px;">
+        <tr>
+          <td width="50%" align="left" style="font-size: 12px; color: #64748B;">
+            <span style="text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Current Status:</span><br>
+            <strong style="color: #0F172A; font-size: 13px;">{{statusLabel ticketStatus}}</strong>
+          </td>
+          {{#if assignedAt}}
+          <td width="50%" align="right" style="font-size: 12px; color: #64748B;">
+            <span style="text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Assigned At:</span><br>
+            <strong style="color: #0F172A; font-size: 13px;">{{formatDate assignedAt}}</strong>
+          </td>
+          {{/if}}
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Primary CTA Button -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 28px 0;">
+  <tr>
+    <td align="center">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{{ticketUrl}}}" style="height:48px;v-text-anchor:middle;width:240px;" arcsize="18%" stroke="f" fillcolor="#4F46E5">
+        <w:anchorlock/>
+        <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">View Ticket in Ticketeer</center>
+      </v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-->
+      <a href="{{{ticketUrl}}}" target="_blank" class="btn-primary" style="display: inline-block; background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); background-color: #4F46E5; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.25), 0 2px 4px -2px rgba(79, 70, 229, 0.15); text-align: center; letter-spacing: 0.01em;">
+        View Ticket in Workspace &rarr;
+      </a>
+      <!--<![endif]-->
+    </td>
+  </tr>
+</table>
+
+<!-- Direct Link Fallback -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 8px; margin-bottom: 20px;">
+  <tr>
+    <td style="padding: 14px 16px;">
+      <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+        Direct Ticket Link:
+      </p>
+      <p style="margin: 0; font-size: 12px; color: #4F46E5; word-break: break-all; font-family: ui-monospace, Menlo, monospace; line-height: 18px;">
+        <a href="{{{ticketUrl}}}" style="color: #4F46E5; text-decoration: underline;">{{{ticketUrl}}}</a>
+      </p>
+    </td>
+  </tr>
+</table>
+
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: #94A3B8;">
+  Tip: You can reassign, add internal notes, or resolve this ticket directly from your agent portal.
+</p>

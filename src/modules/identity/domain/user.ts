@@ -2,6 +2,9 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root.js';
 import { EmailVerificationRequested } from './events.js';
 import { Role } from './role.js';
 
+export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+export const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
 export interface UserProps {
   id: string;
   email: string;
@@ -10,6 +13,8 @@ export interface UserProps {
   role: Role;
   emailVerifiedAt: Date | null;
   createdAt: Date;
+  failedLoginAttempts?: number;
+  lockedUntil?: Date | null;
 }
 
 export const normalizeEmail = (raw: string): string => raw.trim().toLowerCase();
@@ -28,13 +33,19 @@ export class User extends AggregateRoot {
       role: Role.CUSTOMER,
       emailVerifiedAt: null,
       createdAt: new Date(),
+      failedLoginAttempts: 0,
+      lockedUntil: null,
     });
     user.requestEmailVerification();
     return user;
   }
 
   static rehydrate(props: UserProps): User {
-    return new User({ ...props });
+    return new User({
+      ...props,
+      failedLoginAttempts: props.failedLoginAttempts ?? 0,
+      lockedUntil: props.lockedUntil ? new Date(props.lockedUntil) : null,
+    });
   }
 
   get id() { return this.props.id; }
@@ -44,6 +55,32 @@ export class User extends AggregateRoot {
   get role() { return this.props.role; }
   get emailVerifiedAt() { return this.props.emailVerifiedAt; }
   get createdAt() { return this.props.createdAt; }
+  get failedLoginAttempts() { return this.props.failedLoginAttempts ?? 0; }
+  get lockedUntil() { return this.props.lockedUntil ?? null; }
+
+  isLocked(now = new Date()): boolean {
+    return !!this.props.lockedUntil && this.props.lockedUntil.getTime() > now.getTime();
+  }
+
+  recordFailedLogin(now = new Date()): void {
+    // If a previous lockout has expired, reset counter before recording new failure
+    if (this.props.lockedUntil && this.props.lockedUntil.getTime() <= now.getTime()) {
+      this.props.failedLoginAttempts = 0;
+      this.props.lockedUntil = null;
+    }
+
+    const attempts = (this.props.failedLoginAttempts ?? 0) + 1;
+    this.props.failedLoginAttempts = attempts;
+
+    if (attempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+      this.props.lockedUntil = new Date(now.getTime() + LOCKOUT_DURATION_MS);
+    }
+  }
+
+  recordSuccessfulLogin(): void {
+    this.props.failedLoginAttempts = 0;
+    this.props.lockedUntil = null;
+  }
 
   /** Idempotent. */
   verifyEmail(): void {

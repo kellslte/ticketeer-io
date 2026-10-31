@@ -42,6 +42,8 @@ export class DrizzleUserRepository implements UserRepository {
       role: user.role,
       emailVerifiedAt: user.emailVerifiedAt,
       createdAt: user.createdAt,
+      failedLoginAttempts: user.failedLoginAttempts,
+      lockedUntil: user.lockedUntil,
     };
     try {
       // The outbox rows commit with the user, so a verification email is never lost or sent for a rolled-back signup.
@@ -51,7 +53,14 @@ export class DrizzleUserRepository implements UserRepository {
           .values(row)
           .onConflictDoUpdate({
             target: users.id,
-            set: { name: row.name, passwordHash: row.passwordHash, role: row.role, emailVerifiedAt: row.emailVerifiedAt },
+            set: {
+              name: row.name,
+              passwordHash: row.passwordHash,
+              role: row.role,
+              emailVerifiedAt: row.emailVerifiedAt,
+              failedLoginAttempts: row.failedLoginAttempts,
+              lockedUntil: row.lockedUntil,
+            },
           });
         for (const event of user.pendingEvents) {
           if (event instanceof EmailVerificationRequested && !user.emailVerifiedAt) await enqueue(tx, 'user.verify_email', { userId: user.id });
